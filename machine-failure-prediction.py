@@ -10,8 +10,12 @@ from sklearn.linear_model import LogisticRegression
 from sklearn.preprocessing import StandardScaler
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.datasets import make_classification
+import xgboost as xgb
 
 dataset = pd.read_csv('C:\\Users\\marte\\OneDrive\\Documentos\\Escritorio\\Codigos\\CodigosPython\\machine-failure-prediction\\ai4i2020.csv')
+pd.set_option('display.max_columns', None)
+
+
 
 def generar_histograma():
     seaborn.histplot(data=dataset, x='Torque [Nm]', hue='PWF', common_norm=False, stat="density", element="step")
@@ -47,6 +51,8 @@ dataset = codificar_type(dataset)
 X_train, X_test, y_train, y_test = train_test_split(dataset[['Air temperature [K]', 'Process temperature [K]', 'Rotational speed [rpm]', 'Torque [Nm]', 'Tool wear [min]', 'Diferencia_Temp', 'Potencia', 'Type_encoded']], 
                                                     dataset['Machine failure'], test_size=0.3, stratify=dataset['Machine failure'], random_state=42)
 
+
+
 def dummyclassifier(X_train, X_test, y_train, y_test):
     dummy_clf = DummyClassifier(strategy="most_frequent")
     dummy_clf.fit(X_train, y_train)
@@ -73,6 +79,50 @@ def RandomForest(X_train, X_test, y_train, y_test):
     verdaderos_positivos = X_test[(y_test == 1) & (y_pred == 1)]
     print(verdaderos_positivos.describe())
     print(classification_report(y_test, y_pred))
-pd.set_option('display.max_columns', None)
 
-print(RandomForest(X_train, X_test, y_train, y_test))
+def XgboostModel(X_train, X_test, y_train, y_test):
+    X_train = X_train.rename(columns={
+        'Torque [Nm]': 'Torque_Nm',
+        'Rotational speed [rpm]': 'Rotational_speed_rpm',
+        'Tool wear [min]': 'Tool_wear_min',
+        'Air temperature [K]': 'Air_temperature_K',
+        'Process temperature [K]': 'Process_temperature_K'
+    })
+    X_test = X_test.rename(columns={
+        'Torque [Nm]': 'Torque_Nm',
+        'Rotational speed [rpm]': 'Rotational_speed_rpm',
+        'Tool wear [min]': 'Tool_wear_min',
+        'Air temperature [K]': 'Air_temperature_K',
+        'Process temperature [K]': 'Process_temperature_K'
+    })
+    xgb_clf = xgb.XGBClassifier(eval_metric='logloss')
+    scale_pos_weight = (len(y_train[y_train == 0]) / len(y_train[y_train == 1]))
+    xgb_clf.set_params(scale_pos_weight=scale_pos_weight)
+    xgb_clf.fit(X_train, y_train)
+    y_pred = xgb_clf.predict(X_test)
+    print(classification_report(y_test, y_pred))
+
+def XgboostModelNoScale(X_train, X_test, y_train, y_test):
+    X_train = X_train.rename(columns={
+        'Torque [Nm]': 'Torque_Nm',
+        'Rotational speed [rpm]': 'Rotational_speed_rpm',
+        'Tool wear [min]': 'Tool_wear_min',
+        'Air temperature [K]': 'Air_temperature_K',
+        'Process temperature [K]': 'Process_temperature_K'
+    })
+    X_test = X_test.rename(columns={
+        'Torque [Nm]': 'Torque_Nm',
+        'Rotational speed [rpm]': 'Rotational_speed_rpm',
+        'Tool wear [min]': 'Tool_wear_min',
+        'Air temperature [K]': 'Air_temperature_K',
+        'Process temperature [K]': 'Process_temperature_K'
+    })
+    xgb_clf = xgb.XGBClassifier(eval_metric='logloss')
+    xgb_clf.fit(X_train, y_train)
+    y_pred = xgb_clf.predict(X_test)
+    print(classification_report(y_test, y_pred))
+
+
+
+print(XgboostModel(X_train, X_test, y_train, y_test))
+print(XgboostModelNoScale(X_train, X_test, y_train, y_test))
