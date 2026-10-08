@@ -11,6 +11,7 @@ from sklearn.preprocessing import StandardScaler
 from sklearn.ensemble import RandomForestClassifier
 import xgboost as xgb
 from sklearn.model_selection import GridSearchCV
+import shap
 
 dataset = pd.read_csv('C:\\Users\\marte\\OneDrive\\Documentos\\Escritorio\\Codigos\\CodigosPython\\machine-failure-prediction\\ai4i2020.csv')
 pd.set_option('display.max_columns', None)
@@ -48,6 +49,7 @@ dataset = crear_feature_potencia(dataset)
 dataset = crear_feature_diferencia_temp(dataset)
 dataset = codificar_type(dataset)
 
+
 X_train, X_test, y_train, y_test = train_test_split(dataset[['Air temperature [K]', 'Process temperature [K]', 'Rotational speed [rpm]', 'Torque [Nm]', 'Tool wear [min]', 'Diferencia_Temp', 'Potencia', 'Type_encoded']], 
                                                     dataset['Machine failure'], test_size=0.3, stratify=dataset['Machine failure'], random_state=42)
 
@@ -76,11 +78,9 @@ def RandomForest(X_train, X_test, y_train, y_test):
     rf_clf.fit(X_train, y_train)
     y_pred = rf_clf.predict(X_test)
     falsos_negativos = X_test[(y_test == 1) & (y_pred == 0)]
-    print(falsos_negativos.describe())
     verdaderos_positivos = X_test[(y_test == 1) & (y_pred == 1)]
-    print(verdaderos_positivos.describe())
-    print(classification_report(y_test, y_pred))
-
+    return rf_clf
+modelo_entrenado = RandomForest(X_train, X_test, y_train, y_test)
 
 def XgboostModel(X_train, X_test, y_train, y_test):
     X_train = X_train.rename(columns={
@@ -125,6 +125,7 @@ def XgboostModelNoScale(X_train, X_test, y_train, y_test):
     y_pred = xgb_clf.predict(X_test)
     print(classification_report(y_test, y_pred))
 
+
 def GridSearchCv (X_train, X_test, y_train, y_test):
     randomforest = RandomForestClassifier(random_state=42)
     param_grid = {
@@ -143,6 +144,20 @@ def GridSearchCv (X_train, X_test, y_train, y_test):
     print(grid_search.best_score_)
 
 
+def shaptree(modelo, xtest,):
+    explainer = shap.TreeExplainer(modelo)
+    shap_values = explainer.shap_values(xtest)
+    shap_values_falla = shap_values[:, :, 1]
+    
+    shap.summary_plot(shap_values_falla, xtest, plot_type="bar")
+    shap.summary_plot(shap_values_falla, xtest)
+    shap.dependence_plot("Torque [Nm]", shap_values_falla, xtest)
+    shap.dependence_plot("Rotational speed [rpm]", shap_values_falla, xtest)
+    shap.dependence_plot("Tool wear [min]", shap_values_falla, xtest)
+    shap.dependence_plot("Air temperature [K]", shap_values_falla, xtest)
+    shap.dependence_plot("Process temperature [K]", shap_values_falla, xtest)
+    shap.dependence_plot("Diferencia_Temp", shap_values_falla, xtest)
+    shap.dependence_plot("Potencia", shap_values_falla, xtest)
+    shap.dependence_plot("Type_encoded", shap_values_falla, xtest)
 
-
-print(GridSearchCv(X_train, X_test, y_train, y_test))
+shaptree(modelo_entrenado, X_test)
