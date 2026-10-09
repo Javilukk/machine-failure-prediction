@@ -64,6 +64,7 @@ def dummyclassifier(X_train, X_test, y_train, y_test):
 
 
 def logisticRegression(X_train, X_test, y_train, y_test):
+
     scaler = StandardScaler()
     X_train = scaler.fit_transform(X_train)
     X_test = scaler.transform(X_test)
@@ -74,15 +75,18 @@ def logisticRegression(X_train, X_test, y_train, y_test):
 
 
 def RandomForest(X_train, X_test, y_train, y_test):
+
     rf_clf = RandomForestClassifier(n_estimators=100, random_state=42,)  
     rf_clf.fit(X_train, y_train)
     y_pred = rf_clf.predict(X_test)
     falsos_negativos = X_test[(y_test == 1) & (y_pred == 0)]
     verdaderos_positivos = X_test[(y_test == 1) & (y_pred == 1)]
-    return rf_clf
-modelo_entrenado = RandomForest(X_train, X_test, y_train, y_test)
+    return rf_clf, falsos_negativos, verdaderos_positivos
+
+modelo_entrenado, falsos_negativos, verdaderos_positivos = RandomForest(X_train, X_test, y_train, y_test)
 
 def XgboostModel(X_train, X_test, y_train, y_test):
+
     X_train = X_train.rename(columns={
         'Torque [Nm]': 'Torque_Nm',
         'Rotational speed [rpm]': 'Rotational_speed_rpm',
@@ -90,6 +94,7 @@ def XgboostModel(X_train, X_test, y_train, y_test):
         'Air temperature [K]': 'Air_temperature_K',
         'Process temperature [K]': 'Process_temperature_K'
     })
+
     X_test = X_test.rename(columns={
         'Torque [Nm]': 'Torque_Nm',
         'Rotational speed [rpm]': 'Rotational_speed_rpm',
@@ -106,6 +111,7 @@ def XgboostModel(X_train, X_test, y_train, y_test):
 
 
 def XgboostModelNoScale(X_train, X_test, y_train, y_test):
+
     X_train = X_train.rename(columns={
         'Torque [Nm]': 'Torque_Nm',
         'Rotational speed [rpm]': 'Rotational_speed_rpm',
@@ -113,6 +119,7 @@ def XgboostModelNoScale(X_train, X_test, y_train, y_test):
         'Air temperature [K]': 'Air_temperature_K',
         'Process temperature [K]': 'Process_temperature_K'
     })
+
     X_test = X_test.rename(columns={
         'Torque [Nm]': 'Torque_Nm',
         'Rotational speed [rpm]': 'Rotational_speed_rpm',
@@ -120,6 +127,7 @@ def XgboostModelNoScale(X_train, X_test, y_train, y_test):
         'Air temperature [K]': 'Air_temperature_K',
         'Process temperature [K]': 'Process_temperature_K'
     })
+
     xgb_clf = xgb.XGBClassifier(eval_metric='logloss')
     xgb_clf.fit(X_train, y_train)
     y_pred = xgb_clf.predict(X_test)
@@ -137,20 +145,25 @@ def GridSearchCv (X_train, X_test, y_train, y_test):
     }
     grid_search = GridSearchCV(estimator=randomforest, param_grid=param_grid, scoring='f1', cv=5, verbose=2)
     grid_search.fit(X_train, y_train)
+
     print("Best parameters found: ", grid_search.best_params_)
+
     best_model = grid_search.best_estimator_
     y_pred = best_model.predict(X_test)
+
     print(classification_report(y_test, y_pred))
+
     print(grid_search.best_score_)
 
 
-def shaptree(modelo, xtest,):
+def shapTreeGlobal(modelo, xtest,):
     explainer = shap.TreeExplainer(modelo)
     shap_values = explainer.shap_values(xtest)
     shap_values_falla = shap_values[:, :, 1]
     
     shap.summary_plot(shap_values_falla, xtest, plot_type="bar")
     shap.summary_plot(shap_values_falla, xtest)
+
     shap.dependence_plot("Torque [Nm]", shap_values_falla, xtest)
     shap.dependence_plot("Rotational speed [rpm]", shap_values_falla, xtest)
     shap.dependence_plot("Tool wear [min]", shap_values_falla, xtest)
@@ -160,4 +173,13 @@ def shaptree(modelo, xtest,):
     shap.dependence_plot("Potencia", shap_values_falla, xtest)
     shap.dependence_plot("Type_encoded", shap_values_falla, xtest)
 
-shaptree(modelo_entrenado, X_test)
+def shap_caso_individual(modelo, xtest, falsos_negativos):
+    explainer = shap.TreeExplainer(modelo)
+    indice_fila = falsos_negativos.index[1]
+    posicion = xtest.index.get_loc(indice_fila)
+
+    shap_explanation = explainer(xtest)
+
+    shap.waterfall_plot(shap_explanation[posicion, :, 1])
+
+shap_caso_individual(modelo_entrenado, X_test, falsos_negativos)
