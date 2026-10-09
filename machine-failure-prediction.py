@@ -1,4 +1,5 @@
 from turtle import speed
+import joblib
 import pandas as pd
 import seaborn 
 import matplotlib.pyplot as plt
@@ -12,10 +13,10 @@ from sklearn.ensemble import RandomForestClassifier
 import xgboost as xgb
 from sklearn.model_selection import GridSearchCV
 import shap
+from features import crear_feature_potencia, crear_feature_diferencia_temp, codificar_type
 
 dataset = pd.read_csv('C:\\Users\\marte\\OneDrive\\Documentos\\Escritorio\\Codigos\\CodigosPython\\machine-failure-prediction\\ai4i2020.csv')
 pd.set_option('display.max_columns', None)
-
 
 
 def generar_histograma():
@@ -29,22 +30,6 @@ def generar_histograma():
     plt.xlabel('Fallas de la máquina')
     plt.ylabel('Densidad')
     print("Histograma de fallas de la máquina generado con Seaborn.")
-
-def crear_feature_potencia(df):
-    Rads_per_sec = df['Rotational speed [rpm]'] * (2 * 3.141592653589793 / 60)
-    df['Potencia'] = df['Torque [Nm]'] * Rads_per_sec
-    return df
-
-def crear_feature_diferencia_temp(df):
-    df['Diferencia_Temp'] = df['Process temperature [K]'] - df['Air temperature [K]']
-    return df
-
-def codificar_type(df):
-    dataframe= OrdinalEncoder(categories=[['L', 'M', 'H']]).fit_transform(df[['Type']])
-    df['Type_encoded'] = dataframe
-    return df
-
-
 dataset = crear_feature_potencia(dataset)
 dataset = crear_feature_diferencia_temp(dataset)
 dataset = codificar_type(dataset)
@@ -81,6 +66,7 @@ def RandomForest(X_train, X_test, y_train, y_test):
     y_pred = rf_clf.predict(X_test)
     falsos_negativos = X_test[(y_test == 1) & (y_pred == 0)]
     verdaderos_positivos = X_test[(y_test == 1) & (y_pred == 1)]
+    joblib.dump(rf_clf, 'RandomForestMachineFailure.pkl')
     return rf_clf, falsos_negativos, verdaderos_positivos
 
 modelo_entrenado, falsos_negativos, verdaderos_positivos = RandomForest(X_train, X_test, y_train, y_test)
