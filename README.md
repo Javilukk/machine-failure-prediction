@@ -1,6 +1,6 @@
 # Machine Failure Prediction
 
-Predicción de riesgo de falla en maquinaria industrial a partir de datos de sensores (temperatura, torque, velocidad rotacional, desgaste de herramienta), usando modelos de clasificación con interpretabilidad vía SHAP.
+Predicción de riesgo de falla en maquinaria industrial a partir de datos de sensores (temperatura, torque, velocidad rotacional, desgaste de herramienta), usando modelos de clasificación con interpretabilidad vía SHAP, expuesto como API con FastAPI y contenerizado con Docker.
 
 ## El problema
 
@@ -43,7 +43,9 @@ El DummyClassifier confirma que accuracy no es una métrica útil aquí: con 96.
 
 **XGBoost**, con o sin ajuste de peso por clase, no logró superar a Random Forest en F1 — el ajuste de `scale_pos_weight` mejora el recall marginalmente pero a un costo alto en precision.
 
-### Modelo final: Random Forest
+**GridSearchCV** sobre Random Forest arrojó un resultado peor al modelo default (F1 0.70 vs 0.86) — pendiente de diagnóstico, probablemente relacionado con el uso de `class_weight='balanced'` en la combinación ganadora.
+
+### Modelo final: Random Forest (parámetros default)
 
 Se eligió Random Forest como modelo final por tener el mejor balance (F1) entre precision y recall, logrando un recall casi idéntico a las alternativas de XGBoost pero con muchas menos falsas alarmas.
 
@@ -74,23 +76,76 @@ Se analizó un caso específico de falso negativo con `shap.waterfall_plot`. La 
 
 Se confirmó explícitamente (`X_train.columns`) que las features usadas excluyen identificadores y columnas de tipo de falla específico, descartando que los buenos resultados de Random Forest se deban a fuga de información.
 
-## Próximos pasos
+## API — Endpoint de predicción
 
-- [ ] Ajuste de hiperparámetros (resultado preliminar con GridSearchCV no superó al modelo default — pendiente de diagnóstico)
-- [ ] Guardar el modelo entrenado (joblib)
-- [ ] Endpoint de inferencia con FastAPI
-- [ ] Contenerización con Docker
-- [ ] Organización del código en módulos (`features.py`, `train.py`, etc.)
+**POST** `/predict`
 
-## Tecnologías
+Recibe datos crudos de sensor y regresa la probabilidad de falla.
 
-Python · Pandas · NumPy · Matplotlib · Seaborn · Scikit-learn · XGBoost · SHAP
+**Body de ejemplo:**
+```json
+{
+  "air_temperature": 298.8,
+  "process_temperature": 309,
+  "rotational_speed": 1523,
+  "torque": 38.6,
+  "tool_wear": 177,
+  "type": "L"
+}
+```
+
+**Respuesta:**
+```json
+{
+  "probabilidad_fallo": 0.55
+}
+```
+
+El endpoint aplica internamente el mismo pipeline de feature engineering usado en entrenamiento (`features.py`): cálculo de potencia, diferencia de temperatura, y encoding ordinal de `Type`.
+
+**Nota:** una probabilidad de 0.0 o 1.0 exactos no es un error — es el comportamiento esperado del modelo cuando los valores de sensor caen claramente en zonas sin ambigüedad (ver sección de EDA). Para probar el endpoint con casos de riesgo real, usar valores de torque en los extremos (5-15 o 50-70 Nm) o tool wear alto.
 
 ## Cómo correr este proyecto
 
+### Opción 1: Con Docker (recomendado)
+
 ```bash
-pip install -r requirements.txt
-python machine-failure-prediction.py
+docker build -t machine-failure-api .
+docker run -p 8000:8000 machine-failure-api
 ```
 
-*Nota: el script actualmente requiere ajustes de reproducibilidad (ruta de datos, requirements.txt) — pendiente de actualizar.*
+Una vez corriendo, abre `http://127.0.0.1:8000/docs` para probar el endpoint `/predict` de forma interactiva.
+
+### Opción 2: Entorno local
+
+```bash
+pip install -r requirements.txt
+python machine-failure-prediction.py   # entrena y guarda el modelo
+uvicorn api:app --reload                # levanta la API
+```
+
+*Nota: el script de entrenamiento actualmente usa una ruta absoluta para cargar el CSV — pendiente de actualizar a ruta relativa.*
+
+## Próximos pasos
+
+- [ ] Ruta relativa para carga de datos (actualmente hardcodeada)
+- [ ] Diagnóstico de por qué GridSearchCV subóptimo respecto al modelo default
+- [ ] Organización adicional del código (separar entrenamiento de experimentación en archivos distintos)
+
+## Tecnologías
+
+Python · Pandas · NumPy · Matplotlib · Seaborn · Scikit-learn · XGBoost · SHAP · FastAPI · Docker
+
+## Estructura del proyecto
+
+```
+machine-failure-prediction/
+├── ai4i2020.csv
+├── machine-failure-prediction.py   # EDA, entrenamiento, evaluación, SHAP
+├── features.py                      # feature engineering reutilizable
+├── api.py                           # endpoint FastAPI
+├── RandomForestMachineFailure.pkl  # modelo entrenado
+├── Dockerfile
+├── requirements.txt
+└── README.md
+```
