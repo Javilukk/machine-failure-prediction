@@ -35,5 +35,6 @@ def predecir(datos: DatosSensor):
     pandas_df = codificar_type(pandas_df)
     pandas_df = pandas_df[['Air temperature [K]', 'Process temperature [K]', 'Rotational speed [rpm]', 'Torque [Nm]', 'Tool wear [min]', 'Diferencia_Temp', 'Potencia', 'Type_encoded']]
     prediccion = modelo.predict_proba(pandas_df)
+    print(pandas_df)
     return {"probabilidad_fallo": float(prediccion[0][1])}
     pass

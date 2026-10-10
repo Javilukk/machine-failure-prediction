@@ -168,4 +168,6 @@ def shap_caso_individual(modelo, xtest, falsos_negativos):
 
     shap.waterfall_plot(shap_explanation[posicion, :, 1])
 
-shap_caso_individual(modelo_entrenado, X_test, falsos_negativos)
+fila_cualquiera = X_test.iloc[[0]]
+print(fila_cualquiera)
+print(modelo_entrenado.predict_proba(verdaderos_positivos.iloc[[0, 1, 2]]))
