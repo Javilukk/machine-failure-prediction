@@ -124,13 +124,9 @@ python machine-failure-prediction.py   # entrena y guarda el modelo
 uvicorn api:app --reload                # levanta la API
 ```
 
-*Nota: el script de entrenamiento actualmente usa una ruta absoluta para cargar el CSV — pendiente de actualizar a ruta relativa.*
-
 ## Próximos pasos
 
-- [ ] Ruta relativa para carga de datos (actualmente hardcodeada)
 - [ ] Diagnóstico de por qué GridSearchCV subóptimo respecto al modelo default
-- [ ] Organización adicional del código (separar entrenamiento de experimentación en archivos distintos)
 
 ## Tecnologías
 
